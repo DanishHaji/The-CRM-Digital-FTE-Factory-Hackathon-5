@@ -1,69 +1,25 @@
-"""WhatsApp webhook endpoint (Twilio)."""
+"""WhatsApp webhook endpoint (Twilio) - Direct Processing."""
 
-import base64
-import uuid
-import hmac
-import hashlib
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Request, Form, Header
-from api.models.requests import WhatsAppWebhookPayload
-from api.models.responses import AsyncProcessingResponse
-from kafka.producer import publish_message
-from kafka.topics import TOPIC_INCOMING, TOPIC_WHATSAPP, create_ticket_message
-from utils.config import settings
-from utils.logger import get_logger
+from fastapi.responses import PlainTextResponse
 
-router = APIRouter(prefix="/api/webhooks", tags=["whatsapp"])
+from ...channels.whatsapp_handler import handle_whatsapp_webhook
+from ...utils.logger import get_logger
+
+router = APIRouter()
 logger = get_logger(__name__)
-
-
-def validate_twilio_signature(
-    url: str,
-    params: dict,
-    signature: str,
-    auth_token: str,
-) -> bool:
-    """
-    Validate Twilio webhook signature for security.
-
-    Args:
-        url: Full webhook URL
-        params: POST parameters
-        signature: X-Twilio-Signature header value
-        auth_token: Twilio auth token
-
-    Returns:
-        True if signature is valid, False otherwise
-    """
-
-    # Sort parameters
-    sorted_params = sorted(params.items())
-
-    # Concatenate: URL + sorted params
-    data = url + "".join(f"{k}{v}" for k, v in sorted_params)
-
-    # Compute HMAC-SHA256
-    computed_signature = base64.b64encode(
-        hmac.new(
-            auth_token.encode("utf-8"),
-            data.encode("utf-8"),
-            hashlib.sha256
-        ).digest()
-    ).decode("utf-8")
-
-    # Compare signatures (constant-time comparison)
-    return hmac.compare_digest(computed_signature, signature)
 
 
 @router.post(
     "/whatsapp",
-    response_model=AsyncProcessingResponse,
     status_code=status.HTTP_200_OK,
     summary="WhatsApp (Twilio) webhook",
-    description="Receive WhatsApp messages via Twilio webhook",
+    description="Receive WhatsApp messages via Twilio webhook and process with Digital FTE agent",
+    response_class=PlainTextResponse
 )
-async def handle_whatsapp_webhook(
+async def whatsapp_webhook_endpoint(
     request: Request,
     MessageSid: str = Form(...),
     AccountSid: str = Form(...),
@@ -74,107 +30,58 @@ async def handle_whatsapp_webhook(
     ProfileName: Optional[str] = Form(default=None),
     WaId: Optional[str] = Form(default=None),
     x_twilio_signature: Optional[str] = Header(default=None, alias="X-Twilio-Signature"),
-) -> AsyncProcessingResponse:
+):
     """
     Handle WhatsApp message from Twilio webhook.
 
     Process:
     1. Validate Twilio signature (security)
-    2. Extract message details
-    3. Normalize phone number
-    4. Publish to Kafka for agent processing
+    2. Parse WhatsApp message
+    3. Process with Digital FTE agent
+    4. Send concise response via Twilio API (with splitting if > 1600 chars)
 
     Args:
         Form parameters from Twilio webhook
         x_twilio_signature: Twilio signature header for validation
 
     Returns:
-        AsyncProcessingResponse (must return 200 OK to Twilio)
+        Empty TwiML response (Twilio expects 200 OK)
 
-    Note: Twilio expects 200 OK within 15 seconds
+    Note: Twilio expects 200 OK within 15 seconds.
+    Processing happens inline (no Kafka) for MVP simplicity.
     """
 
     try:
-        # Validate Twilio signature (if configured)
-        if settings.twilio_auth_token and x_twilio_signature:
-            form_data = await request.form()
-            params = dict(form_data)
-
-            is_valid = validate_twilio_signature(
-                url=str(request.url),
-                params=params,
-                signature=x_twilio_signature,
-                auth_token=settings.twilio_auth_token,
-            )
-
-            if not is_valid:
-                logger.warning(
-                    "twilio_signature_validation_failed",
-                    message_sid=MessageSid,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail={
-                        "error": "InvalidSignature",
-                        "message": "Twilio signature validation failed",
-                    }
-                )
-
-        # Extract WhatsApp number (remove 'whatsapp:' prefix)
-        whatsapp_number = From.replace("whatsapp:", "")
-
-        # Generate ticket ID
-        ticket_id = str(uuid.uuid4())
-        conversation_id = str(uuid.uuid4())
-
-        # Create Kafka message
-        kafka_message = create_ticket_message(
-            ticket_id=ticket_id,
-            conversation_id=conversation_id,
-            customer_id="",  # Will be resolved by agent
-            channel="whatsapp",
-            message=Body,
-            channel_message_id=MessageSid,
-        )
-
-        # Add WhatsApp-specific metadata
-        kafka_message["metadata"] = {
-            "message_sid": MessageSid,
-            "account_sid": AccountSid,
-            "from_number": whatsapp_number,
-            "to_number": To.replace("whatsapp:", ""),
-            "profile_name": ProfileName,
-            "wa_id": WaId,
-            "num_media": int(NumMedia),
+        # Build payload from form data
+        payload = {
+            "MessageSid": MessageSid,
+            "AccountSid": AccountSid,
+            "From": From,
+            "To": To,
+            "Body": Body,
+            "NumMedia": NumMedia,
+            "ProfileName": ProfileName,
+            "WaId": WaId
         }
 
-        # Publish to both unified and channel-specific topics
-        await publish_message(
-            topic=TOPIC_WHATSAPP,
-            key=ticket_id,
-            value=kafka_message,
-        )
+        # Get full URL for signature validation
+        url = str(request.url)
 
-        await publish_message(
-            topic=TOPIC_INCOMING,
-            key=ticket_id,
-            value=kafka_message,
-        )
+        # Get signature (default to empty if not provided)
+        signature = x_twilio_signature or ""
+
+        # Process webhook (validate signature, parse, run agent, send response)
+        result = await handle_whatsapp_webhook(payload, signature, url)
 
         logger.info(
-            "whatsapp_message_received",
-            ticket_id=ticket_id,
-            message_sid=MessageSid,
-            from_number=whatsapp_number,
-            message_length=len(Body),
+            "whatsapp_webhook_success",
+            ticket_id=result.get("ticket_id"),
+            status=result.get("status"),
+            message_sid=MessageSid
         )
 
-        # Return 200 OK to Twilio (required)
-        return AsyncProcessingResponse(
-            status="processing",
-            message="WhatsApp message received and queued for processing",
-            ticket_id=ticket_id,
-        )
+        # Return empty TwiML response (Twilio expects this)
+        return PlainTextResponse(content="", status_code=200)
 
     except HTTPException:
         raise
@@ -188,12 +95,19 @@ async def handle_whatsapp_webhook(
             exc_info=True,
         )
 
+        # Check if it's a signature validation error
+        if "Invalid Twilio signature" in str(exc):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "InvalidSignature",
+                    "message": "Twilio signature validation failed"
+                }
+            )
+
         # Return 200 OK to prevent Twilio retries on transient errors
-        return AsyncProcessingResponse(
-            status="error",
-            message="WhatsApp message processing failed",
-            ticket_id=None,
-        )
+        # Twilio will not retry if we return 200
+        return PlainTextResponse(content="", status_code=200)
 
 
 @router.get(
@@ -207,5 +121,6 @@ async def whatsapp_webhook_health() -> dict:
     return {
         "status": "healthy",
         "webhook": "whatsapp",
+        "channel": "whatsapp",
         "timestamp": datetime.utcnow().isoformat(),
     }

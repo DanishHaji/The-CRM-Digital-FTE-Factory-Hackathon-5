@@ -71,9 +71,13 @@ app.add_middleware(
 # Import and include routers
 from .routes.health import router as health_router
 from .routes.web import router as web_router
+from .routes.gmail import router as gmail_router
+from .routes.whatsapp import router as whatsapp_router
 
 app.include_router(health_router, tags=["Health"])
 app.include_router(web_router, prefix="/webhooks", tags=["Web Form"])
+app.include_router(gmail_router, prefix="/webhooks", tags=["Gmail"])
+app.include_router(whatsapp_router, prefix="/webhooks", tags=["WhatsApp"])
 
 
 @app.get("/")

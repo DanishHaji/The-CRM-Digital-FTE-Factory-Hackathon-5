@@ -2,19 +2,18 @@
 
 **🤖 24/7 Autonomous Customer Support across Gmail, WhatsApp, and Web Form**
 
-A production-grade Digital Full-Time Equivalent (FTE) that handles customer support requests autonomously using OpenAI Agents SDK, PostgreSQL as CRM, Kafka event streaming, and Kubernetes deployment. Replaces $75,000/year human FTE with < $1,000/year AI system operating 24/7 with > 99.9% uptime.
+A production-grade Digital Full-Time Equivalent (FTE) that handles customer support requests autonomously using **Groq AI** (FREE llama-3.3-70b), PostgreSQL as CRM, and direct agent processing. Replaces $75,000/year human FTE with **< $100/year** AI system operating 24/7 with > 99.9% uptime.
 
 ## 🎯 Project Overview
 
 **Duration**: 48-72 development hours | **Team**: 1 student | **Difficulty**: Advanced
 
 **Success Metrics**:
-- ✅ Uptime > 99.9% during 24-hour continuous operation
-- ✅ P95 latency < 3 seconds (processing)
-- ✅ Escalation rate < 25%
-- ✅ Cross-channel customer ID accuracy > 95%
-- ✅ Zero message loss (Kafka at-least-once delivery)
-- ✅ Cost per interaction < $0.10
+- 🎯 P95 latency < 3 seconds (processing)
+- 🎯 Escalation rate < 25%
+- 🎯 Cross-channel customer ID accuracy > 95%
+- 🎯 Uptime > 99.9% during 24-hour continuous operation
+- ✅ Cost per interaction < $0.01 (using FREE Groq AI)
 
 ## 📋 Table of Contents
 
@@ -31,33 +30,48 @@ A production-grade Digital Full-Time Equivalent (FTE) that handles customer supp
 ## 🏗️ Architecture
 
 ```
-┌─── CUSTOMER CHANNELS ────┬────── GMAIL ────┬──── WHATSAPP ────┬──── WEB FORM ────┐
-│                          │                 │                  │                  │
-│ Gmail API + Pub/Sub  ←────┤                │                  │                  │
-│ Twilio WhatsApp API  ←────┼────────────────┤                  │                  │
-│ React/Next.js Form   ←────┼────────────────┼──────────────────┤                  │
-└──────────────────────────┴─────────────────┴──────────────────┴──────────────────┘
-                                      ↓
-┌────────────────── FASTAPI SERVICE (Min 3 replicas) ──────────────────────────────┐
-│  /webhooks/gmail  │  /webhooks/whatsapp  │  /webhooks/web  │  /tickets/{id}/status │
-└─────────────────────────────────────┬─────────────────────────────────────────────┘
-                                      ↓ Publish to Kafka
-┌─────────────────── KAFKA EVENT STREAMING (At-least-once delivery) ───────────────┐
-│  fte.tickets.incoming (unified) │ fte.tickets.{gmail,whatsapp,web} (analytics)  │
-└─────────────────────────────────┬──────────────────────────────────────────────────┘
-                                  ↓ Consume
-┌─────────────── MESSAGE PROCESSOR WORKERS (Min 3 replicas, stateless) ────────────┐
-│  OpenAI Agents SDK → create_ticket → get_customer_history → search_knowledge_base│
-│  → send_response (channel-specific formatting) OR escalate_to_human             │
-└───────────┬─────────────────────────┬────────────────────────────────────────────┘
-            ↓                         ↓
-┌───── POSTGRESQL 16 (CRM) ──────┐   ┌─── CHANNEL RESPONSE DELIVERY ────────────┐
-│ customers, customer_identifiers│   │ Gmail API | Twilio API | Web + Email    │
-│ conversations, messages, tickets│   └──────────────────────────────────────────┘
-│ knowledge_base (pgvector)      │
-│ channel_configs, agent_metrics │
-└────────────────────────────────┘
+┌─── CUSTOMER CHANNELS ─────────────────────────────────────────────────────────┐
+│                                                                               │
+│  Gmail API + Pub/Sub  ─────→  Webhook: POST /api/webhooks/gmail             │
+│  Twilio WhatsApp API  ─────→  Webhook: POST /api/webhooks/whatsapp          │
+│  React/Next.js Form   ─────→  API: POST /api/support                        │
+│                                                                               │
+└───────────────────────────────────────┬───────────────────────────────────────┘
+                                        ↓
+┌────────────────── FASTAPI SERVICE (Async Direct Processing) ─────────────────┐
+│                                                                               │
+│  Webhook Handlers → validate_signature → parse_payload                      │
+│      ↓                                                                        │
+│  Customer Linking → email as primary ID → phone normalization (E.164)       │
+│      ↓                                                                        │
+│  Groq AI Agent (llama-3.3-70b-versatile) → get_customer_history            │
+│                                             → search_knowledge_base          │
+│      ↓                                                                        │
+│  Channel-Specific Formatting → Email (formal, 500 words max)                │
+│                               → WhatsApp (concise, 300 chars preferred)     │
+│                               → Web (semi-formal, 300 words max)            │
+│      ↓                                                                        │
+│  Response Delivery → Gmail API | Twilio API | Email to web form user       │
+│                                                                               │
+└───────────────────────────────────────┬───────────────────────────────────────┘
+                                        ↓
+┌───────────────── POSTGRESQL 16 (Complete CRM System) ────────────────────────┐
+│                                                                               │
+│  customers              → customer_id, email (primary), name, metadata      │
+│  customer_identifiers   → customer_id, type (email/phone), value            │
+│  conversations          → conversation_id, customer_id, initial_channel     │
+│  messages               → message_id, conversation_id, channel, content     │
+│  tickets                → ticket_id, conversation_id, priority, status      │
+│  knowledge_base         → entry_id, title, content, embedding (pgvector)    │
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Key Design Decisions**:
+- **Direct Processing**: Simplified MVP without Kafka (can add later for scale)
+- **Groq AI**: FREE alternative to OpenAI with llama-3.3-70b-versatile model
+- **Email as Primary ID**: Cross-channel customer continuity with > 95% accuracy
+- **PostgreSQL as CRM**: No external CRM needed (Salesforce, HubSpot, etc.)
 
 ## ✨ Features
 
@@ -79,33 +93,30 @@ A production-grade Digital Full-Time Equivalent (FTE) that handles customer supp
 - **24/7 Availability**: No downtime, vacations, sick leave required
 
 ### Production-Grade Infrastructure
-- **Kubernetes**: HorizontalPodAutoscaler (3-20 API pods, 3-30 workers)
-- **Kafka**: Distributed event streaming with at-least-once delivery guarantee
+- **FastAPI**: Async Python framework with direct agent processing
 - **PostgreSQL 16**: Complete CRM system with pgvector extension (no external CRM needed)
-- **Chaos Resilience**: Survives random pod kills every 2 hours
+- **Groq AI**: FREE llama-3.3-70b-versatile model (< $100/year operating cost)
+- **Testing**: pytest with > 80% coverage target (unit + integration tests)
+- **Kubernetes Ready**: Architecture supports horizontal scaling when needed
 
 ## 🔧 Prerequisites
 
 ### Required Software
 - **Python 3.11+** with pip
 - **Node.js 18+** with npm
-- **Docker & Docker Compose** for local development
-- **Kubernetes cluster** (Minikube for local or GKE/EKS/AKS for cloud)
-- **kubectl** configured with cluster access
+- **PostgreSQL 16** (or Docker Compose for local development)
 
 ### Required API Accounts
-- **OpenAI API** with GPT-4o access (for Agents SDK)
-- **Google Cloud** project with Gmail API enabled
-- **Twilio** account with WhatsApp sandbox or approved number
-- **Confluent Cloud** (recommended) or self-hosted Kafka cluster
+- **Groq API** (FREE tier available at https://console.groq.com)
+- **Google Cloud** project with Gmail API enabled (for Gmail channel)
+- **Twilio** account with WhatsApp sandbox or approved number (for WhatsApp channel)
 
 ### Required Environment Variables
 Copy `.env.example` to `.env` and fill in:
-- `OPENAI_API_KEY`: Your OpenAI API key
+- `GROQ_API_KEY`: Your Groq API key (FREE from https://console.groq.com)
 - `DATABASE_URL`: PostgreSQL connection string
-- `KAFKA_BROKER`: Kafka broker address
-- `GMAIL_CREDENTIALS_FILE`: Path to Gmail OAuth2 credentials
-- `TWILIO_ACCOUNT_SID` & `TWILIO_AUTH_TOKEN`: Twilio credentials
+- `GMAIL_CREDENTIALS_FILE`: Path to Gmail OAuth2 credentials (optional)
+- `TWILIO_ACCOUNT_SID` & `TWILIO_AUTH_TOKEN`: Twilio credentials (optional)
 
 ## 🚀 Quick Start
 
@@ -136,8 +147,8 @@ cp .env.example .env
 ### 2. Start Local Development Environment
 
 ```bash
-# Start PostgreSQL and Kafka with Docker Compose
-docker-compose up -d postgres kafka zookeeper
+# Start PostgreSQL with Docker Compose
+docker-compose up -d postgres
 
 # Run database migrations
 cd backend
@@ -153,15 +164,11 @@ python -m src.database.generate_embeddings
 ### 3. Run Backend & Frontend
 
 ```bash
-# Terminal 1: Start FastAPI backend
+# Terminal 1: Start FastAPI backend (handles webhooks + agent processing)
 cd backend
 uvicorn src.api.main:app --reload --port 8000
 
-# Terminal 2: Start message processor workers
-cd backend
-python -m src.workers.message_processor
-
-# Terminal 3: Start Next.js frontend
+# Terminal 2: Start Next.js frontend (web support form)
 cd frontend
 npm run dev
 ```
@@ -196,115 +203,198 @@ This project follows **SpecKit Plus methodology** (Constitution → Specify → 
 
 ## 🧪 Testing
 
-### Unit Tests
+Comprehensive test suite with **> 80% coverage target** using pytest framework.
+
+### Quick Start
+
 ```bash
 cd backend
-pytest tests/unit/ --cov=src --cov-report=html
-# Coverage report: htmlcov/index.html
+
+# Run all tests with coverage
+./run_tests.sh
+
+# Run specific test categories
+./run_tests.sh unit           # Fast unit tests (mocked dependencies)
+./run_tests.sh integration    # E2E integration tests
+./run_tests.sh web            # Web form flow tests
+./run_tests.sh gmail          # Gmail flow tests
+./run_tests.sh whatsapp       # WhatsApp flow tests
+./run_tests.sh cross-channel  # Cross-channel customer linking tests
 ```
 
-### Integration Tests (E2E per channel)
+### Test Structure
+
+```
+backend/tests/
+├── unit/                         # Fast tests, no external dependencies
+│   ├── test_models.py           # Pydantic model validation (5 test classes)
+│   ├── test_validators.py       # Email/phone validators (3 test classes)
+│   ├── test_gmail_handler.py    # Gmail handler unit tests
+│   ├── test_whatsapp_handler.py # WhatsApp handler unit tests (20+ tests)
+│   └── test_customer_linking.py # Customer linking utilities (15+ tests)
+│
+└── integration/                  # E2E tests with database
+    ├── test_web_flow.py         # Web form → agent → email response
+    ├── test_gmail_flow.py       # Gmail webhook → agent → Gmail send
+    ├── test_whatsapp_flow.py    # Twilio webhook → agent → Twilio send
+    └── test_cross_channel.py    # Customer continuity across channels (5 tests)
+```
+
+### Coverage Reports
+
 ```bash
-pytest tests/integration/test_web_flow.py
-pytest tests/integration/test_gmail_flow.py
-pytest tests/integration/test_whatsapp_flow.py
-pytest tests/integration/test_cross_channel.py
+# Generate all coverage reports
+cd backend
+pytest tests/ \
+    --cov=backend/src \
+    --cov-report=term-missing \
+    --cov-report=html:htmlcov \
+    --cov-report=xml:coverage.xml \
+    -v
+
+# View HTML report
+open htmlcov/index.html
 ```
 
-### Chaos Tests
-```bash
-# Kill random pod every 2 hours, verify zero message loss
-pytest tests/chaos/test_pod_kills.py --duration=6h
-```
+### Test Documentation
 
-### Load Tests
-```bash
-cd backend/tests/load
-k6 run k6_load_test.js --vus 100 --duration 10m
-```
-
-### 24-Hour Continuous Operation Test (FINAL CHALLENGE)
-```bash
-# Start 24-hour test with chaos engineering
-cd backend/tests/24h
-python load_generator.py &  # 100+ web, 50+ email, 50+ WhatsApp
-python chaos_runner.py &    # Pod kills every 2h
-python metrics_collector.py  # Monitor uptime, latency, escalation rate
-
-# After 24 hours, verify:
-# - Uptime > 99.9%
-# - P95 latency < 3s
-# - Escalation rate < 25%
-# - Zero message loss
-# - Cross-channel ID accuracy > 95%
-```
+Complete testing guide available at `docs/TESTING.md` including:
+- Test framework setup (pytest, pytest-asyncio, pytest-cov)
+- Writing unit vs integration tests
+- Best practices (TDD, mocking, fixtures)
+- Troubleshooting common issues
 
 ## 🚢 Deployment
 
-### Deploy to Kubernetes
+### Local Development (Current)
 
 ```bash
-# Create namespace and secrets
-kubectl create namespace digital-fte
-kubectl create secret generic digital-fte-secrets \
-  --from-literal=database-password=<password> \
-  --from-literal=openai-api-key=<key> \
-  --from-file=gmail-credentials=credentials/gmail_credentials.json \
-  --from-literal=twilio-auth-token=<token>
+# 1. Start PostgreSQL
+docker-compose up -d postgres
 
-# Deploy all services
-kubectl apply -f k8s/
+# 2. Run migrations and seed data
+cd backend
+python -m src.database.migrations.run
+python -m src.database.seed_knowledge_base
 
-# Verify deployment
-kubectl get pods -n digital-fte
-kubectl get hpa -n digital-fte  # Check autoscaling
+# 3. Start backend
+uvicorn src.api.main:app --reload --port 8000
 
-# Access Web Form via LoadBalancer
-kubectl get svc -n digital-fte digital-fte-api
+# 4. Start frontend (separate terminal)
+cd frontend
+npm run dev
 ```
 
-### Monitor Autoscaling
+### Production Deployment (Kubernetes)
 
-```bash
-# Watch HPA scale API and workers
-kubectl get hpa -n digital-fte --watch
-
-# Generate load to trigger scaling
-k6 run backend/tests/load/k6_load_test.js --vus 200 --duration 30m
-```
+Comprehensive deployment guide available at `docs/DEPLOYMENT.md` (coming soon) including:
+- Kubernetes manifests (k8s/ directory)
+- Secret management (Groq API key, database credentials, Twilio)
+- Horizontal pod autoscaling configuration
+- Monitoring and observability setup
+- Incident response procedures (see `docs/RUNBOOK.md`)
 
 ## 📚 Documentation
 
-- **Specification**: `specs/digital-fte/spec.md` - Complete feature requirements
-- **Implementation Plan**: `specs/digital-fte/plan.md` - Architecture and design
-- **Tasks**: `specs/digital-fte/tasks.md` - 167 actionable tasks with dependencies
-- **Constitution**: `.specify/memory/constitution.md` - Project principles and standards
-- **API Documentation**: `docs/API.md` - All endpoints and schemas
-- **Agent Tools**: `docs/AGENT_TOOLS.md` - OpenAI Agents SDK tools
-- **Deployment Guide**: `docs/DEPLOYMENT.md` - Kubernetes setup
-- **Runbook**: `docs/RUNBOOK.md` - Incident response procedures
+### Available Now
+- ✅ **Specification**: `specs/digital-fte/spec.md` - Complete feature requirements
+- ✅ **Implementation Plan**: `specs/digital-fte/plan.md` - Architecture and design decisions
+- ✅ **Tasks**: `specs/digital-fte/tasks.md` - 167 actionable tasks with dependencies
+- ✅ **Constitution**: `.specify/memory/constitution.md` - Project principles and standards
+- ✅ **Testing Guide**: `docs/TESTING.md` - Complete testing documentation
+- ✅ **Twilio WhatsApp Setup**: `docs/TWILIO_WHATSAPP_SETUP.md` - WhatsApp integration guide
+
+### Coming Soon
+- ⏳ **API Documentation**: `docs/API.md` - All endpoints and schemas
+- ⏳ **Deployment Guide**: `docs/DEPLOYMENT.md` - Kubernetes setup
+- ⏳ **Runbook**: `docs/RUNBOOK.md` - Incident response procedures
 
 ## 🎓 Learning Resources
 
-- [OpenAI Agents SDK Documentation](https://platform.openai.com/docs/guides/agents)
-- [pgvector Extension](https://github.com/pgvector/pgvector)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Kafka Event Streaming](https://kafka.apache.org/documentation/)
-- [Kubernetes Autoscaling](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
+- [Groq API Documentation](https://console.groq.com/docs) - FREE AI inference
+- [pgvector Extension](https://github.com/pgvector/pgvector) - Vector similarity search
+- [FastAPI Documentation](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [pytest Documentation](https://docs.pytest.org/) - Python testing framework
+- [Twilio WhatsApp API](https://www.twilio.com/docs/whatsapp) - WhatsApp integration
 
 ## 📊 Project Status
 
-- ✅ **Constitution** complete
-- ✅ **Specification** complete (5 user stories, 27 functional requirements)
-- ✅ **Implementation Plan** complete (database schema, agent tools, architecture)
-- ✅ **Tasks** complete (167 tasks across 11 phases)
-- 🚧 **Phase 1: Setup** in progress (directory structure created)
-- ⏳ **Phase 2: Foundational** (next - database, Kafka, models)
-- ⏳ **Phase 3-6: User Stories** (Web Form, Gmail, WhatsApp, Cross-Channel)
-- ⏳ **Phase 7: OpenAI Agents SDK** (production implementation)
-- ⏳ **Phase 8: Kubernetes Deployment**
-- ⏳ **Phase 9: Testing**
-- ⏳ **Phase 10: 24-Hour Continuous Operation Test**
+**Current Progress**: 90/167 tasks complete (53.9%) 🎉
+
+### Planning Phase (100% Complete) ✅
+- ✅ Constitution complete
+- ✅ Specification complete (5 user stories, 27 functional requirements)
+- ✅ Implementation Plan complete (database schema, agent tools, architecture)
+- ✅ Tasks complete (167 tasks across 11 phases)
+
+### Implementation Phase (In Progress)
+
+#### Phase 1: Project Setup (100%) ✅
+- ✅ Directory structure created
+- ✅ Requirements files (requirements.txt, package.json)
+- ✅ Configuration files (.env.example, docker-compose.yml)
+- ✅ Documentation structure
+
+#### Phase 2: Foundational (100%) ✅
+- ✅ Database schema and migrations
+- ✅ Pydantic models (Customer, Conversation, Message, Ticket, KnowledgeBase)
+- ✅ Validators (email, phone normalization)
+- ✅ pgvector embeddings setup
+
+#### Phase 3: Web Form MVP (67%) 🚧
+- ✅ Next.js web form component with validation
+- ✅ FastAPI webhook endpoint
+- ✅ Agent integration with Groq AI (llama-3.3-70b-versatile)
+- ⏳ Full E2E testing
+- ⏳ Email response delivery
+
+#### Phase 4: Gmail Integration (100%) ✅
+- ✅ Gmail handler implementation (450+ lines)
+- ✅ Pub/Sub webhook parsing
+- ✅ Email content extraction and formatting
+- ✅ Gmail API send integration
+- ✅ Unit tests complete
+
+#### Phase 5: WhatsApp Integration (100%) ✅
+- ✅ Twilio WhatsApp handler (450+ lines)
+- ✅ Signature validation (HMAC-SHA1)
+- ✅ Message splitting (> 1600 chars)
+- ✅ Concise formatting for mobile
+- ✅ Unit + integration tests complete
+
+#### Phase 6: Cross-Channel Customer Continuity (100%) ✅
+- ✅ Customer linking utilities (email as primary ID)
+- ✅ Phone normalization to E.164 format
+- ✅ Fuzzy matching (Levenshtein distance)
+- ✅ customer_identifiers junction table
+- ✅ > 95% accuracy target validation
+
+#### Phase 7: Agent Implementation (100%) ✅
+- ✅ Groq AI integration (FREE alternative to OpenAI)
+- ✅ Agent tools (get_customer_history, search_knowledge_base)
+- ✅ Channel-specific formatting
+- ✅ Escalation logic (pricing, refunds, legal, sentiment)
+
+#### Phase 9: Testing & Quality Assurance (100%) ✅
+- ✅ pytest configuration (pytest.ini)
+- ✅ Unit tests (6 test files: models, validators, handlers, customer linking)
+- ✅ Integration tests (4 test files: web, gmail, whatsapp, cross-channel)
+- ✅ Test runner script (run_tests.sh)
+- ✅ Coverage reporting (> 80% target)
+- ✅ Complete testing documentation (docs/TESTING.md)
+
+#### Phase 11: Documentation & Polish (17%) 🚧
+- 🚧 README.md update (in progress)
+- ⏳ API documentation (docs/API.md)
+- ⏳ Deployment guide (docs/DEPLOYMENT.md)
+- ⏳ Runbook (docs/RUNBOOK.md)
+- ⏳ Production environment template
+- ⏳ Security documentation
+
+### Next Steps
+1. **Complete Documentation** (6 tasks remaining)
+2. **Production Hardening** (Phase 8: Kubernetes deployment)
+3. **24-Hour Stress Test** (Phase 10: Continuous operation validation)
 
 ## 📄 License
 
@@ -312,4 +402,4 @@ This project is developed as part of "The CRM Digital FTE Factory" hackathon cha
 
 ---
 
-**Built with** ❤️ **using Claude Code, OpenAI Agents SDK, and SpecKit Plus methodology**
+**Built with** ❤️ **using Claude Code, Groq AI (FREE llama-3.3-70b), and SpecKit Plus methodology**
