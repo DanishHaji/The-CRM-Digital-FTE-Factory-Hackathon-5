@@ -22,8 +22,10 @@ import { api, ApiError } from '../services/api';
 import { translations } from '../utils/translations';
 import LanguageSwitcher from './LanguageSwitcher';
 import StatusDisplay from './StatusDisplay';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SupportForm() {
+  const { user } = useAuth();
   const [lang, setLang] = useState('en');
   const [formData, setFormData] = useState({
     name: '',
@@ -76,6 +78,24 @@ export default function SupportForm() {
 
       setSubmitStatus('success');
       setTicketId(result.ticket_id);
+
+      // Save ticket to localStorage if user is logged in
+      if (user) {
+        const ticketData = {
+          ticket_id: result.ticket_id,
+          subject: formData.message.substring(0, 50) + (formData.message.length > 50 ? '...' : ''),
+          message: formData.message,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          name: formData.name,
+          email: formData.email,
+        };
+
+        const existingTickets = localStorage.getItem(`tickets_${user.email}`);
+        const tickets = existingTickets ? JSON.parse(existingTickets) : [];
+        tickets.unshift(ticketData); // Add to beginning
+        localStorage.setItem(`tickets_${user.email}`, JSON.stringify(tickets));
+      }
 
       // Reset form
       setFormData({

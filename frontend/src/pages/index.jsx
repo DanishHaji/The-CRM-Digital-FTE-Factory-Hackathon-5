@@ -5,6 +5,7 @@
 
 import Head from 'next/head';
 import SupportForm from '../components/SupportForm';
+import Navigation from '../components/Navigation';
 
 export default function Home() {
   return (
@@ -23,6 +24,8 @@ export default function Home() {
         {/* Multi-language support */}
         <meta httpEquiv="Content-Language" content="en, ur, ar, es, fr, zh" />
       </Head>
+
+      <Navigation />
 
       <main>
         <SupportForm />
