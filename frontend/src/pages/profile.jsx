@@ -34,14 +34,16 @@ export default function Profile() {
         email,
       };
 
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setMessage({ type: 'success', text: 'Profile updated successfully!' });
-      setEditing(false);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setMessage({ type: 'success', text: 'Profile updated successfully!' });
+        setEditing(false);
 
-      // Reload page to reflect changes
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+        // Reload page to reflect changes
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
     }

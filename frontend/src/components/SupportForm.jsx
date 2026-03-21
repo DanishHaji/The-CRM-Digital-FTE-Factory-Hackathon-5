@@ -80,7 +80,7 @@ export default function SupportForm() {
       setTicketId(result.ticket_id);
 
       // Save ticket to localStorage if user is logged in
-      if (user) {
+      if (user && typeof window !== 'undefined') {
         const ticketData = {
           ticket_id: result.ticket_id,
           subject: formData.message.substring(0, 50) + (formData.message.length > 50 ? '...' : ''),

@@ -18,13 +18,16 @@ export const AuthProvider = ({ children }) => {
 
   // Check for existing session on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('user');
+    // Only access localStorage in the browser
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (error) {
+          console.error('Error parsing stored user:', error);
+          localStorage.removeItem('user');
+        }
       }
     }
     setLoading(false);
@@ -41,7 +44,9 @@ export const AuthProvider = ({ children }) => {
         createdAt: new Date().toISOString(),
       };
 
-      localStorage.setItem('user', JSON.stringify(newUser));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('user', JSON.stringify(newUser));
+      }
       setUser(newUser);
 
       return { success: true, user: newUser };
@@ -55,7 +60,11 @@ export const AuthProvider = ({ children }) => {
     try {
       // For MVP, we'll use localStorage for authentication
       // In production, this should call the backend API and verify credentials
-      const storedUser = localStorage.getItem('user');
+      let storedUser = null;
+
+      if (typeof window !== 'undefined') {
+        storedUser = localStorage.getItem('user');
+      }
 
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
@@ -73,7 +82,9 @@ export const AuthProvider = ({ children }) => {
         createdAt: new Date().toISOString(),
       };
 
-      localStorage.setItem('user', JSON.stringify(newUser));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('user', JSON.stringify(newUser));
+      }
       setUser(newUser);
 
       return { success: true, user: newUser };
@@ -84,7 +95,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('user');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('user');
+    }
     setUser(null);
     router.push('/');
   };

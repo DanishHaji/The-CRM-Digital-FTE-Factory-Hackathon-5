@@ -27,7 +27,7 @@ export default function Dashboard() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (user) {
+    if (user && typeof window !== 'undefined') {
       // Load tickets from localStorage (in production, fetch from backend API)
       const storedTickets = localStorage.getItem(`tickets_${user.email}`);
       if (storedTickets) {
