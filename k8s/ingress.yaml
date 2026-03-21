@@ -1,0 +1,88 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: digital-fte-ingress
+  namespace: digital-fte
+  annotations:
+    # cert-manager for automatic SSL/TLS
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+    # Nginx Ingress Controller settings
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+
+    # Rate limiting (optional)
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+
+    # CORS (optional, if frontend is on different domain)
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://yourdomain.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type, Authorization"
+
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - api.yourdomain.com  # Change to your domain
+    secretName: digital-fte-tls  # Created automatically by cert-manager
+  rules:
+  - host: api.yourdomain.com  # Change to your domain
+    http:
+      paths:
+      # Webhook endpoints
+      - path: /api/webhooks/gmail
+        pathType: Exact
+        backend:
+          service:
+            name: digital-fte-api
+            port:
+              number: 80
+      - path: /api/webhooks/whatsapp
+        pathType: Exact
+        backend:
+          service:
+            name: digital-fte-api
+            port:
+              number: 80
+
+      # Web support form endpoint
+      - path: /api/support
+        pathType: Exact
+        backend:
+          service:
+            name: digital-fte-api
+            port:
+              number: 80
+
+      # Ticket status endpoints
+      - path: /api/tickets
+        pathType: Prefix
+        backend:
+          service:
+            name: digital-fte-api
+            port:
+              number: 80
+
+      # Health check endpoints
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: digital-fte-api
+            port:
+              number: 80
+
+      # Catch-all for other API endpoints
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: digital-fte-api
+            port:
+              number: 80

@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: digital-fte-config
+  namespace: digital-fte
+data:
+  # Application settings
+  APP_ENV: "production"
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  LOG_LEVEL: "INFO"
+
+  # AI Provider
+  AI_PROVIDER: "groq"
+  GROQ_MODEL: "llama-3.3-70b-versatile"
+  GROQ_MAX_TOKENS: "1000"
+  GROQ_TEMPERATURE: "0.7"
+
+  # Database settings (non-sensitive)
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "digitalfte_db"
+  DB_POOL_MIN_SIZE: "10"
+  DB_POOL_MAX_SIZE: "50"
+
+  # Knowledge base settings
+  EMBEDDING_MODEL: "all-MiniLM-L6-v2"
+  EMBEDDING_DIM: "384"
+  KNOWLEDGE_BASE_TOP_K: "5"
+  KNOWLEDGE_BASE_SIMILARITY_THRESHOLD: "0.7"
+
+  # Agent configuration
+  AGENT_NAME: "Digital FTE Customer Success Agent"
+  SUPPORT_EMAIL: "support@yourdomain.com"
+  COMPANY_NAME: "Your Company"
+  COMPANY_WEBSITE: "https://yourdomain.com"
+  HELP_CENTER_URL: "https://help.yourdomain.com"
+
+  # Escalation settings
+  ESCALATION_KEYWORDS: "pricing,refund,cancel,legal,lawsuit,sue,lawyer,attorney"
+  ESCALATION_SENTIMENT_THRESHOLD: "0.3"
+
+  # Channel settings
+  CHANNEL_WEB_ENABLED: "true"
+  CHANNEL_EMAIL_ENABLED: "true"
+  CHANNEL_WHATSAPP_ENABLED: "true"
+
+  # Performance settings
+  REQUEST_TIMEOUT: "30"
+  AGENT_TIMEOUT: "10"
+  DB_QUERY_TIMEOUT: "5"
+  MAX_CONCURRENT_REQUESTS: "100"
+
+  # Feature flags
+  KNOWLEDGE_BASE_ENABLED: "true"
+  CUSTOMER_HISTORY_ENABLED: "true"
+  AUTO_CLOSE_TICKETS: "false"
+  DEBUG: "false"
+  ENABLE_API_DOCS: "false"
