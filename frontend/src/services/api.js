@@ -19,7 +19,7 @@ export const api = {
    */
   async submitSupportForm(formData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/webhooks/web`, {
+      const response = await fetch(`${API_BASE_URL}/webhooks/web`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

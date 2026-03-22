@@ -2,11 +2,11 @@
 
 from typing import Optional
 from fastapi import APIRouter, HTTPException, status, Query
-from api.models.responses import TicketStatusResponse, TicketStatus
-from database.connection import get_connection
-from utils.logger import get_logger
+from ..models.responses import TicketStatusResponse, TicketStatus
+from ...database.connection import get_connection
+from ...utils.logger import get_logger
 
-router = APIRouter(prefix="/api/tickets", tags=["tickets"])
+router = APIRouter(prefix="/api/tickets", tags=["Tickets"])
 logger = get_logger(__name__)
 
 
