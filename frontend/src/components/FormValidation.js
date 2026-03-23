@@ -49,3 +49,8 @@ export const validateForm = (formData, t) => {
 export const sanitizeInput = (input) => {
   return input.trim().replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 };
+
+// For real-time input - removes XSS threats but preserves spaces during typing
+export const sanitizeInputRealtime = (input) => {
+  return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+};

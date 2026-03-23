@@ -17,7 +17,7 @@ import {
   FaExclamationTriangle,
   FaSearch,
 } from 'react-icons/fa';
-import { validateForm, sanitizeInput } from './FormValidation';
+import { validateForm, sanitizeInput, sanitizeInputRealtime } from './FormValidation';
 import { api, ApiError } from '../services/api';
 import { translations } from '../utils/translations';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -48,7 +48,7 @@ export default function SupportForm() {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: sanitizeInput(value)
+      [name]: sanitizeInputRealtime(value)
     }));
     // Clear error when user starts typing
     if (errors[name]) {
@@ -266,19 +266,17 @@ export default function SupportForm() {
                 <div className="relative">
                   <textarea
                     name="message"
-                    rows={5}
+                    rows={6}
                     placeholder={t.form.messagePlaceholder}
                     value={formData.message}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 pr-12 border-2 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all outline-none resize-none ${
+                    className={`w-full px-5 py-4 border-2 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all outline-none resize-none leading-relaxed ${
                       errors.message
                         ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
                         : 'border-gray-200'
                     } ${isRTL ? 'text-right' : ''}`}
+                    style={{ lineHeight: '1.6' }}
                   />
-                  <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
-                    <FaCommentDots className="text-gray-400" />
-                  </div>
                 </div>
                 {errors.message && (
                   <motion.p
@@ -464,7 +462,7 @@ function InputField({ icon: Icon, name, type, placeholder, label, value, onChang
           placeholder={placeholder}
           value={value}
           onChange={onChange}
-          className={`w-full px-4 py-3 ${isRTL ? 'pr-12 text-right' : 'pl-12'} border-2 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all outline-none ${
+          className={`w-full px-5 py-3.5 ${isRTL ? 'pr-12 text-right' : 'pl-12'} border-2 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all outline-none ${
             error
               ? 'border-red-500 focus:border-red-500 focus:ring-red-100'
               : 'border-gray-200'
